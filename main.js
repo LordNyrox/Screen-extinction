@@ -2,7 +2,6 @@ const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
-const isElevated = require('is-elevated');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -19,7 +18,9 @@ function createWindow() {
 }
 
 async function initializeApp() {
+  const { default: isElevated } = await import('is-elevated');
   const elevated = await isElevated();
+
   if (!elevated) {
     const command = `powershell -command "Start-Process '${process.execPath}' -Verb runAs"`;
     exec(command, (error) => {
