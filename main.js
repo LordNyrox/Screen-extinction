@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, screen } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const isElevated = require('is-elevated');
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -17,7 +18,19 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 }
 
-app.whenReady().then(() => {
+async function initializeApp() {
+  const elevated = await isElevated();
+  if (!elevated) {
+    const command = `powershell -command "Start-Process '${process.execPath}' -Verb runAs"`;
+    exec(command, (error) => {
+      if (error) {
+        console.error(error);
+      }
+      app.quit();
+    });
+    return;
+  }
+
   const profilesPath = path.join(app.getPath('userData'), 'profiles.json');
 
   ipcMain.handle('get-screens', () => {
@@ -62,7 +75,10 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
-});
+}
+
+
+app.whenReady().then(initializeApp);
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();

@@ -8,19 +8,34 @@ document.addEventListener('DOMContentLoaded', () => {
   saveProfileButton.addEventListener('click', saveProfile);
 });
 
+function showError(message) {
+  const errorDiv = document.getElementById('error-message');
+  errorDiv.innerText = message;
+  errorDiv.style.display = 'block';
+
+  setTimeout(() => {
+    errorDiv.style.display = 'none';
+  }, 5000); // Hide after 5 seconds
+}
+
 async function getMonitorInfo() {
   try {
     const command = 'powershell -command "Get-PnpDevice -Class Monitor | ConvertTo-Json"';
     const { stdout } = await window.api.runCommand(command);
-    // The output can be a single JSON object or an array of them.
-    // The powershell command might return a string that needs to be parsed as a whole
-    // if it's a list of monitors, or as individual JSON objects if they are printed one after another.
-    // For now, let's assume it's a valid JSON array or a stream of JSON objects.
-    // A simple way to handle both is to wrap it in an array and flatten.
-    const sanitizedOutput = `[${stdout.replace(/}\s*{/g, '},{')}]`;
-    return JSON.parse(sanitizedOutput);
+
+    if (!stdout || !stdout.trim()) {
+      return [];
+    }
+
+    const trimmedOutput = stdout.trim();
+    if (trimmedOutput.startsWith('[')) {
+      return JSON.parse(trimmedOutput);
+    } else {
+      return [JSON.parse(trimmedOutput)];
+    }
   } catch (error) {
     console.error('Error getting monitor info:', error);
+    showError('Failed to get monitor information. Please ensure PowerShell is working correctly.');
     return [];
   }
 }
@@ -29,6 +44,11 @@ async function displayScreens() {
   const monitors = await getMonitorInfo();
   const screensDiv = document.getElementById('screens');
   screensDiv.innerHTML = ''; // Clear previous list
+
+  if (!monitors || monitors.length === 0) {
+      screensDiv.innerHTML = '<p>No monitors found or could not retrieve monitor information.</p>';
+      return;
+  }
 
   monitors.forEach(monitor => {
     const screenDiv = document.createElement('div');
@@ -55,6 +75,7 @@ async function toggleScreen(instanceId, enable) {
     setTimeout(displayScreens, 1000);
   } catch (error) {
     console.error(`Error toggling screen ${instanceId}:`, error);
+    showError(`Failed to ${enable ? 'enable' : 'disable'} screen. This usually requires administrator rights. Please try running the application as an administrator.`);
   }
 }
 
@@ -80,18 +101,22 @@ async function saveProfile() {
 }
 
 async function loadProfiles() {
-  profiles = await window.api.loadProfiles();
-  const profileListDiv = document.getElementById('profile-list');
-  profileListDiv.innerHTML = '';
-  for (const profileName in profiles) {
-    const profileDiv = document.createElement('div');
-    profileDiv.classList.add('profile-item');
-    profileDiv.innerHTML = `
-      <span>${profileName}</span>
-      <button onclick="applyProfile('${profileName}')">Load</button>
-      <button onclick="deleteProfile('${profileName}')">Delete</button>
-    `;
-    profileListDiv.appendChild(profileDiv);
+  try {
+    profiles = await window.api.loadProfiles();
+    const profileListDiv = document.getElementById('profile-list');
+    profileListDiv.innerHTML = '';
+    for (const profileName in profiles) {
+      const profileDiv = document.createElement('div');
+      profileDiv.classList.add('profile-item');
+      profileDiv.innerHTML = `
+        <span>${profileName}</span>
+        <button onclick="applyProfile('${profileName}')">Load</button>
+        <button onclick="deleteProfile('${profileName}')">Delete</button>
+      `;
+      profileListDiv.appendChild(profileDiv);
+    }
+  } catch (error) {
+      showError('Failed to load profiles.');
   }
 }
 

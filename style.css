@@ -56,3 +56,13 @@ hr {
     background: #ddd;
     margin: 20px 0;
 }
+
+.error {
+    background-color: #fbe9e7;
+    color: #c62828;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    border: 1px solid #ffcdd2;
+    display: none; /* Hidden by default */
+}
